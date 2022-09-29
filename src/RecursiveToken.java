@@ -7,7 +7,7 @@ public class RecursiveToken extends Token {
         this.name = definitionName;
     }
 
-    public String stripRecursive() {
+    public String stripDefinition() {
         return this.getContent().replace(name, "");
     }
 

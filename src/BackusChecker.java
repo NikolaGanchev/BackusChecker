@@ -1,18 +1,38 @@
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.function.Function;
-import java.util.regex.MatchResult;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class BackusChecker {
     private List<Filter> filters;
     private final String name;
+    private final HashMap<String, BackusChecker> dependencies = new HashMap<>();
 
-    protected BackusChecker(String name, List<Filter> filters) {
+    protected BackusChecker(String name, List<Filter> filters, Collection<String> dependencyNames) {
         this.name = name;
         this.filters = filters;
+
+        for (String dependencyName: dependencyNames) {
+            dependencies.put(dependencyName, null);
+        }
+    }
+
+    public void registerDependency(BackusChecker checker) {
+        if (dependencies.containsKey(checker.name)) {
+            dependencies.put(checker.name, checker);
+            refreshDependencies();
+        } else {
+            throw new IllegalArgumentException("Cannot register undeclared dependency");
+        }
+    }
+
+    private void refreshDependencies() {
+        for (Filter filter: filters) {
+            if (filter instanceof DependantFilter dependantFilter) {
+                BackusChecker dependency = dependencies.get(dependantFilter.getDependencyName());
+                if (dependency != null) {
+                    dependantFilter.setDependency(dependency);
+                }
+            }
+        }
     }
 
     public void setFilters(List<Filter> filters) {
@@ -44,14 +64,20 @@ public class BackusChecker {
 
     public static class Builder {
         private final ArrayList<Token> tokens = new ArrayList<>();
+        private final Set<String> dependencies = new HashSet<>();
         private final String name;
+        private final String definition;
 
         private Builder(String name, String definition) {
             this.name = name;
+            this.definition = definition;
+        }
 
+        private void parse() {
             String[] values = definition.split("[|]");
-            String definedName = getDefinedName();
+            String definedName = getDefinedName(name);
 
+            tokenLoop:
             for (String value : values) {
                 TokenType type = TokenType.SIMPLE;
 
@@ -59,7 +85,16 @@ public class BackusChecker {
                     type = TokenType.RECURSIVE;
                     tokens.add(new RecursiveToken(type, value, definedName));
                     // Връщаме, за да избегнем възможността в една дефиниция да има и собствената, и друга дефиниция
-                    continue;
+                    continue tokenLoop;
+                }
+
+                for (String dependency: dependencies) {
+                    String dependencyDefinedName = getDefinedName(dependency);
+                    if (value.contains(dependencyDefinedName)) {
+                        type = TokenType.DEPENDANT;
+                        tokens.add(new DependantToken(type, value, dependencyDefinedName));
+                        continue tokenLoop;
+                    }
                 }
 
                 tokens.add(new Token(type, value));
@@ -67,7 +102,8 @@ public class BackusChecker {
         }
 
         public BackusChecker build() {
-            BackusChecker backusChecker = new BackusChecker(name, null);
+            BackusChecker backusChecker = new BackusChecker(name, null, dependencies);
+            parse();
             backusChecker.setFilters(buildFilters(backusChecker::check));
             return backusChecker;
         }
@@ -95,10 +131,30 @@ public class BackusChecker {
                                 recToken.getEndingSequence(),
                                 recFunction));
                     }
+                    case DEPENDANT -> {
+                        DependantToken depToken = (DependantToken) token;
+                        filters.add(new DependantFilter(
+                                depToken.getStartingSequence(),
+                                depToken.getEndingSequence(),
+                                depToken.getDependency()
+                        ));
+                    }
                 }
             }
 
             return filters;
+        }
+
+        public Builder expectDependency(String dependencyName) {
+            dependencies.add(dependencyName);
+
+            return this;
+        }
+
+        public Builder expectDependencies(Collection<String> dependencyNames) {
+            dependencies.addAll(dependencyNames);
+
+            return this;
         }
 
         private EvenOddRule getEvenOddRule() {
@@ -108,7 +164,11 @@ public class BackusChecker {
             for (Token token: tokens) {
                 switch (token.getTokenType()) {
                     case SIMPLE -> simpleSizes.add(token.getContent().length());
-                    case RECURSIVE -> recSizes.add(((RecursiveToken) token).stripRecursive().length());
+                    case RECURSIVE -> recSizes.add(((RecursiveToken) token).stripDefinition().length());
+                    // Правилото не може да бъде безопасно определено, ако има външна дефиниция
+                    case DEPENDANT -> {
+                        return EvenOddRule.NONE;
+                    }
                 }
             }
 
@@ -149,35 +209,31 @@ public class BackusChecker {
                         minimumLength = token.getContent().length();
                     }
                 }
+                if (token.getTokenType() == TokenType.DEPENDANT) {
+                    DependantToken dependantToken = (DependantToken) token;
+                    if (minimumLength > dependantToken.stripDefinition().length()) {
+                        minimumLength = dependantToken.stripDefinition().length();
+                    }
+                }
             }
 
             if (minimumLength == -1) {
-                throw new IllegalArgumentException("Definition doesn't containt concrete cases");
+                //Definition doesn't contain concrete cases
+                for (Token token: tokens) {
+                    if (token.getTokenType() == TokenType.RECURSIVE) {
+                        RecursiveToken recursiveToken = (RecursiveToken) token;
+                        if (minimumLength > recursiveToken.stripDefinition().length()) {
+                            minimumLength = recursiveToken.stripDefinition().length();
+                        }
+                    }
+                }
             }
 
             return minimumLength;
         }
 
-        private String getDefinedName() {
+        private String getDefinedName(String name) {
             return "<" + name + ">";
-        }
-
-        // Връща единствено първата поява на друга дефиниция
-        private String getDependency(String stringToCheck) {
-            Pattern pattern = Pattern.compile("<.+>");
-            Matcher matcher = pattern.matcher(stringToCheck);
-
-            ArrayList<String> matches = matcher.results().map(MatchResult::group).collect(
-                    Collectors.toCollection(ArrayList::new)
-            );
-
-            matches.removeIf((str) -> str.substring(1, str.length() - 1).equals(name));
-
-            String result = matches.get(0);
-
-            if (result == null) return null;
-
-            return result.substring(1, result.length() - 1);
         }
     }
 }

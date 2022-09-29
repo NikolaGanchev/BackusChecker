@@ -45,5 +45,35 @@ public class Main {
         System.out.println(backusChecker3.check("ACAAABCBCC"));
         System.out.println(backusChecker3.check("ACAAABCCCC"));
         System.out.println(backusChecker3.check("ACAAABCCCCC"));
+        System.out.println();
+
+
+        //<word1>::=1|<word>1|<word2>0
+        //<word2>::=<word1>0|<word2>1
+        //<word>::=0|<word>0|<word1>1
+        BackusChecker backusCheckerWord = BackusChecker
+                .Builder("word", "0|<word>0|<word1>1")
+                .expectDependency("word1")
+                .build();
+        BackusChecker backusCheckerWord1 = BackusChecker
+                .Builder("word1", "1|<word>1|<word2>0")
+                .expectDependency("word")
+                .expectDependency("word2")
+                .build();
+        BackusChecker backusCheckerWord2 = BackusChecker
+                .Builder("word2", "<word1>0|<word2>1")
+                .expectDependency("word1")
+                .build();
+
+        backusCheckerWord.registerDependency(backusCheckerWord1);
+        backusCheckerWord1.registerDependency(backusCheckerWord2);
+        backusCheckerWord1.registerDependency(backusCheckerWord);
+        backusCheckerWord2.registerDependency(backusCheckerWord1);
+
+        System.out.println(backusCheckerWord.check("0"));
+        System.out.println(backusCheckerWord.check("00"));
+        System.out.println(backusCheckerWord.check("11"));
+        System.out.println(backusCheckerWord.check("1111"));
+        System.out.println(backusCheckerWord.check("10012"));
     }
 }
