@@ -1,3 +1,5 @@
+import java.util.List;
+
 public class Main {
     public static void main(String[] args) {
         BackusChecker backusChecker = BackusChecker.
@@ -75,5 +77,15 @@ public class Main {
         System.out.println(backusCheckerWord.check("11"));
         System.out.println(backusCheckerWord.check("1111"));
         System.out.println(backusCheckerWord.check("10012"));
+        System.out.println();
+
+        BackusGenerator backusGenerator = BackusGenerator
+                .Builder("word", "A|BA|B<word>|AA<word>B")
+                .setLength(6)
+                .build();
+
+        List<String> result = backusGenerator.generate().stream().toList();
+
+        result.forEach(System.out::println);
     }
 }

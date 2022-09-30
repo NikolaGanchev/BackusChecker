@@ -125,8 +125,9 @@ public class BackusChecker {
             return this;
         }
 
-        public void setParser(Parser parser) {
+        public Builder setParser(Parser parser) {
             this.parser = parser;
+            return this;
         }
     }
 }
