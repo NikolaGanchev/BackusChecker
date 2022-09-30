@@ -63,57 +63,27 @@ public class BackusChecker {
 
 
     public static class Builder {
-        private final ArrayList<Token> tokens = new ArrayList<>();
-        private final Set<Definition> dependencies = new HashSet<>();
-        private final Definition name;
-        private final String template;
+        private Parser parser;
 
         private Builder(String name, String template) {
-            this.name = Definition.fromName(name);
-            this.template = template;
-        }
-
-        private void parse() {
-            String[] values = template.split("[|]");
-
-            tokenLoop:
-            for (String value : values) {
-                TokenType type = TokenType.SIMPLE;
-
-                if (value.contains(name.getFullDefinition())) {
-                    type = TokenType.RECURSIVE;
-                    tokens.add(new RecursiveToken(type, value, name));
-                    // Връщаме, за да избегнем възможността в една дефиниция да има и собствената, и друга дефиниция
-                    continue tokenLoop;
-                }
-
-                for (Definition dependency: dependencies) {
-                    if (value.contains(dependency.getFullDefinition())) {
-                        type = TokenType.DEPENDANT;
-                        tokens.add(new DependantToken(type, value, dependency));
-                        continue tokenLoop;
-                    }
-                }
-
-                tokens.add(new Token(type, value));
-            }
+            this.parser = new Parser(Definition.fromName(name), template);
         }
 
         public BackusChecker build() {
-            BackusChecker backusChecker = new BackusChecker(name, null, dependencies);
-            parse();
-            backusChecker.setFilters(buildFilters(backusChecker::check));
+            BackusChecker backusChecker = new BackusChecker(parser.getName(), null, parser.getDependencies());
+
+            backusChecker.setFilters(buildFilters(parser.parse(), backusChecker::check));
             return backusChecker;
         }
 
-        private List<Filter> buildFilters(Function<String, Boolean> recFunction) {
+        private List<Filter> buildFilters(List<Token> tokens, Function<String, Boolean> recFunction) {
             ArrayList<Filter> filters = new ArrayList<>();
 
-            int minimumLength = getMinimumViableLength();
+            int minimumLength = parser.getMinimumViableLength(tokens);
 
             filters.add(new MinimumLengthFilter(minimumLength));
 
-            EvenOddRule evenOddRule = getEvenOddRule();
+            EvenOddRule evenOddRule = parser.getEvenOddRule(tokens);
 
             if (evenOddRule != EvenOddRule.NONE) {
                 filters.add(new EvenOddFilter(evenOddRule));
@@ -144,97 +114,19 @@ public class BackusChecker {
         }
 
         public Builder expectDependency(String dependencyName) {
-            dependencies.add(Definition.fromName(dependencyName));
+            parser.addDependency(dependencyName);
 
             return this;
         }
 
         public Builder expectDependencies(Collection<String> dependencyNames) {
-            dependencies.addAll(dependencyNames.stream().map(Definition::fromName).toList());
+            parser.addDependencies(dependencyNames);
 
             return this;
         }
 
-        private EvenOddRule getEvenOddRule() {
-            ArrayList<Integer> simpleSizes = new ArrayList<>();
-            ArrayList<Integer> recSizes = new ArrayList<>();
-
-            for (Token token: tokens) {
-                switch (token.getTokenType()) {
-                    case SIMPLE -> simpleSizes.add(token.getContent().length());
-                    case RECURSIVE -> recSizes.add(((RecursiveToken) token).stripDefinition().length());
-                    // Правилото не може да бъде безопасно определено, ако има външна дефиниция
-                    case DEPENDANT -> {
-                        return EvenOddRule.NONE;
-                    }
-                }
-            }
-
-            int evenAmountSimple = getAmountOfEven(simpleSizes);
-            int evenAmountRec = getAmountOfEven(recSizes);
-
-            if (simpleSizes.size() == evenAmountSimple && recSizes.size() == evenAmountRec) {
-                return EvenOddRule.EVEN;
-            } else if (simpleSizes.size() == 0 && recSizes.size() == 0) {
-                return EvenOddRule.ODD;
-            }
-
-            return EvenOddRule.NONE;
-        }
-
-        private int getAmountOfEven(List<Integer> arr) {
-            int evenAmount = 0;
-            for (int size: arr) {
-                if (size % 2 == 0) {
-                    evenAmount++;
-                }
-            }
-
-            return evenAmount;
-        }
-
-        private int getMinimumViableLength() {
-            int minimumLength = -1;
-
-            for (Token token: tokens) {
-                if (token.getTokenType() == TokenType.SIMPLE) {
-                    if (minimumLength == -1) {
-                        minimumLength = token.getContent().length();
-                        continue;
-                    }
-
-                    if (minimumLength > token.getContent().length()) {
-                        minimumLength = token.getContent().length();
-                    }
-                }
-                if (token.getTokenType() == TokenType.DEPENDANT) {
-                    DependantToken dependantToken = (DependantToken) token;
-                    if (minimumLength > dependantToken.stripDefinition().length()) {
-                        minimumLength = dependantToken.stripDefinition().length();
-                    }
-                }
-            }
-
-            if (minimumLength == -1) {
-                // Дефиницята не съдържа предопределени случаи
-                for (Token token: tokens) {
-                    if (token.getTokenType() == TokenType.RECURSIVE) {
-                        RecursiveToken recursiveToken = (RecursiveToken) token;
-                        if (minimumLength > recursiveToken.stripDefinition().length()) {
-                            minimumLength = recursiveToken.stripDefinition().length();
-                            continue;
-                        }
-                    }
-                    if (token.getTokenType() == TokenType.DEPENDANT) {
-                        DependantToken dependantToken = (DependantToken) token;
-                        if (minimumLength > dependantToken.stripDefinition().length()) {
-                            minimumLength = dependantToken.stripDefinition().length();
-                        }
-                    }
-                }
-            }
-
-            return minimumLength;
+        public void setParser(Parser parser) {
+            this.parser = parser;
         }
     }
 }
