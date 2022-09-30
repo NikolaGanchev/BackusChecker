@@ -1,21 +1,21 @@
 public class RecursiveToken extends Token {
 
-    private final String name;
+    private final Definition name;
 
-    public RecursiveToken(TokenType tokenType, String content, String definitionName) {
+    public RecursiveToken(TokenType tokenType, String content, Definition definition) {
         super(tokenType, content);
-        this.name = definitionName;
+        this.name = definition;
     }
 
     public String stripDefinition() {
-        return this.getContent().replace(name, "");
+        return this.getContent().replace(name.getFullDefinition(), "");
     }
 
     public String getStartingSequence() {
-        return this.getContent().substring(0, this.getContent().indexOf(name));
+        return this.getContent().substring(0, this.getContent().indexOf(name.getFullDefinition()));
     }
 
     public String getEndingSequence() {
-        return this.getContent().substring((getStartingSequence().length() + name.length()));
+        return this.getContent().substring((getStartingSequence().length() + name.getFullDefinition().length()));
     }
 }

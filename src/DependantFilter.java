@@ -1,10 +1,10 @@
 public class DependantFilter implements Filter {
     private final String startingSequence;
     private final String endingSequence;
-    private final String dependencyName;
+    private final Definition dependencyName;
     private BackusChecker dependency;
 
-    public DependantFilter(String startingSequence, String endingSequence, String dependencyName) {
+    public DependantFilter(String startingSequence, String endingSequence, Definition dependencyName) {
         this.startingSequence = startingSequence;
         this.endingSequence = endingSequence;
         this.dependencyName = dependencyName;
@@ -36,7 +36,7 @@ public class DependantFilter implements Filter {
         }
     }
 
-    public String getDependencyName() {
-        return dependencyName.substring(1, dependencyName.length() - 1);
+    public Definition getDependencyDefinition() {
+        return dependencyName;
     }
 }

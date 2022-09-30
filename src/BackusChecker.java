@@ -3,21 +3,21 @@ import java.util.function.Function;
 
 public class BackusChecker {
     private List<Filter> filters;
-    private final String name;
-    private final HashMap<String, BackusChecker> dependencies = new HashMap<>();
+    private final Definition definition;
+    private final HashMap<Definition, BackusChecker> dependencies = new HashMap<>();
 
-    protected BackusChecker(String name, List<Filter> filters, Collection<String> dependencyNames) {
-        this.name = name;
+    protected BackusChecker(Definition name, List<Filter> filters, Collection<Definition> dependencyNames) {
+        this.definition = name;
         this.filters = filters;
 
-        for (String dependencyName: dependencyNames) {
+        for (Definition dependencyName: dependencyNames) {
             dependencies.put(dependencyName, null);
         }
     }
 
     public void registerDependency(BackusChecker checker) {
-        if (dependencies.containsKey(checker.name)) {
-            dependencies.put(checker.name, checker);
+        if (dependencies.containsKey(checker.getDefinition())) {
+            dependencies.put(checker.getDefinition(), checker);
             refreshDependencies();
         } else {
             throw new IllegalArgumentException("Cannot register undeclared dependency");
@@ -27,7 +27,7 @@ public class BackusChecker {
     private void refreshDependencies() {
         for (Filter filter: filters) {
             if (filter instanceof DependantFilter dependantFilter) {
-                BackusChecker dependency = dependencies.get(dependantFilter.getDependencyName());
+                BackusChecker dependency = dependencies.get(dependantFilter.getDependencyDefinition());
                 if (dependency != null) {
                     dependantFilter.setDependency(dependency);
                 }
@@ -39,8 +39,8 @@ public class BackusChecker {
         this.filters = filters;
     }
 
-    public String getName() {
-        return name;
+    public Definition getDefinition() {
+        return definition;
     }
 
     public boolean check(String stringToCheck) {
@@ -64,35 +64,33 @@ public class BackusChecker {
 
     public static class Builder {
         private final ArrayList<Token> tokens = new ArrayList<>();
-        private final Set<String> dependencies = new HashSet<>();
-        private final String name;
-        private final String definition;
+        private final Set<Definition> dependencies = new HashSet<>();
+        private final Definition name;
+        private final String template;
 
-        private Builder(String name, String definition) {
-            this.name = name;
-            this.definition = definition;
+        private Builder(String name, String template) {
+            this.name = Definition.fromName(name);
+            this.template = template;
         }
 
         private void parse() {
-            String[] values = definition.split("[|]");
-            String definedName = getDefinedName(name);
+            String[] values = template.split("[|]");
 
             tokenLoop:
             for (String value : values) {
                 TokenType type = TokenType.SIMPLE;
 
-                if (value.contains(definedName)) {
+                if (value.contains(name.getFullDefinition())) {
                     type = TokenType.RECURSIVE;
-                    tokens.add(new RecursiveToken(type, value, definedName));
+                    tokens.add(new RecursiveToken(type, value, name));
                     // Връщаме, за да избегнем възможността в една дефиниция да има и собствената, и друга дефиниция
                     continue tokenLoop;
                 }
 
-                for (String dependency: dependencies) {
-                    String dependencyDefinedName = getDefinedName(dependency);
-                    if (value.contains(dependencyDefinedName)) {
+                for (Definition dependency: dependencies) {
+                    if (value.contains(dependency.getFullDefinition())) {
                         type = TokenType.DEPENDANT;
-                        tokens.add(new DependantToken(type, value, dependencyDefinedName));
+                        tokens.add(new DependantToken(type, value, dependency));
                         continue tokenLoop;
                     }
                 }
@@ -146,13 +144,13 @@ public class BackusChecker {
         }
 
         public Builder expectDependency(String dependencyName) {
-            dependencies.add(dependencyName);
+            dependencies.add(Definition.fromName(dependencyName));
 
             return this;
         }
 
         public Builder expectDependencies(Collection<String> dependencyNames) {
-            dependencies.addAll(dependencyNames);
+            dependencies.addAll(dependencyNames.stream().map(Definition::fromName).toList());
 
             return this;
         }
@@ -218,22 +216,25 @@ public class BackusChecker {
             }
 
             if (minimumLength == -1) {
-                //Definition doesn't contain concrete cases
+                // Дефиницята не съдържа предопределени случаи
                 for (Token token: tokens) {
                     if (token.getTokenType() == TokenType.RECURSIVE) {
                         RecursiveToken recursiveToken = (RecursiveToken) token;
                         if (minimumLength > recursiveToken.stripDefinition().length()) {
                             minimumLength = recursiveToken.stripDefinition().length();
+                            continue;
+                        }
+                    }
+                    if (token.getTokenType() == TokenType.DEPENDANT) {
+                        DependantToken dependantToken = (DependantToken) token;
+                        if (minimumLength > dependantToken.stripDefinition().length()) {
+                            minimumLength = dependantToken.stripDefinition().length();
                         }
                     }
                 }
             }
 
             return minimumLength;
-        }
-
-        private String getDefinedName(String name) {
-            return "<" + name + ">";
         }
     }
 }
