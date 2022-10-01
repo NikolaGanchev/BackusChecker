@@ -1,3 +1,7 @@
+package backus.filters;
+
+import backus.EvenOddRule;
+
 public class EvenOddFilter implements Filter {
     private final EvenOddRule evenOddRule;
 

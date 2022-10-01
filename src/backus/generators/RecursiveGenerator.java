@@ -1,3 +1,4 @@
+package backus.generators;
 
 public class RecursiveGenerator implements Generator<String> {
     private final String startingSequence;

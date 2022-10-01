@@ -1,3 +1,5 @@
+package backus;
+
 public enum EvenOddRule {
     EVEN,
     ODD,

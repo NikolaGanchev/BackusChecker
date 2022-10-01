@@ -1,29 +1,29 @@
+package backus;
+
+import backus.generators.RecursiveGenerator;
+import backus.generators.SimpleGenerator;
+import backus.generators.Generator;
+import backus.tokens.RecursiveToken;
+import backus.tokens.Token;
+
 import java.util.*;
 
 public class BackusGenerator {
     private final List<Generator<String>> generators;
     private final Definition definition;
-    private final HashMap<Definition, BackusGenerator> dependencies = new HashMap<>();
-    private final int maximumLength;
     private final EvenOddRule evenOddRule;
 
-    protected BackusGenerator(Definition name, List<Generator<String>> generators,
-                              Collection<Definition> dependencyNames, int maximumLength, EvenOddRule evenOddRule) {
+    protected BackusGenerator(Definition name, List<Generator<String>> generators, EvenOddRule evenOddRule) {
         this.definition = name;
         this.generators = generators;
-        this.maximumLength = maximumLength;
         this.evenOddRule = evenOddRule;
-
-        for (Definition dependencyName: dependencyNames) {
-            dependencies.put(dependencyName, null);
-        }
     }
 
     public Definition getDefinition() {
         return definition;
     }
 
-    public Collection<String> generate() {
+    public Collection<String> generate(int maximumLength) {
         Set<String> result = new HashSet<>();
 
         if (!evenOddRule.satisfiesRule(maximumLength)) {
@@ -32,14 +32,14 @@ public class BackusGenerator {
 
         for (Generator<String> generator: generators) {
             if (generator.isSimpleGenerator()) {
-                generate(result, generator.generate(null));
+                generate(maximumLength, result, generator.generate(null));
             }
         }
 
         return result;
     }
 
-    private void generate(Set<String> destination, String lastResult) {
+    private void generate(int maximumLength, Set<String> destination, String lastResult) {
         if (maximumLength < lastResult.length()) {
             return;
         }
@@ -50,9 +50,7 @@ public class BackusGenerator {
 
         for (Generator<String> generator: generators) {
             if (!generator.isSimpleGenerator()) {
-                RecursiveGenerator recGenerator = (RecursiveGenerator) generator;
-
-                generate(destination, recGenerator.generate(lastResult));
+                generate(maximumLength, destination, generator.generate(lastResult));
             }
         }
     }
@@ -64,7 +62,6 @@ public class BackusGenerator {
 
     public static class Builder {
         private Parser parser;
-        private int length;
 
         private Builder(String name, String template) {
             this.parser = new Parser(Definition.fromName(name), template);
@@ -75,8 +72,6 @@ public class BackusGenerator {
             BackusGenerator backusGenerator = new BackusGenerator(
                     parser.getName(),
                     buildGenerators(tokens),
-                    parser.getDependencies(),
-                    length,
                     parser.getEvenOddRule(tokens));
             return backusGenerator;
         }
@@ -102,11 +97,6 @@ public class BackusGenerator {
 
         public Builder setParser(Parser parser) {
             this.parser = parser;
-            return this;
-        }
-
-        public Builder setLength(int length) {
-            this.length = length;
             return this;
         }
     }

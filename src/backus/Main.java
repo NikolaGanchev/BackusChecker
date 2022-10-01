@@ -1,3 +1,5 @@
+package backus;
+
 import java.util.List;
 
 public class Main {
@@ -81,10 +83,9 @@ public class Main {
 
         BackusGenerator backusGenerator = BackusGenerator
                 .Builder("word", "A|BA|B<word>|AA<word>B")
-                .setLength(6)
                 .build();
 
-        List<String> result = backusGenerator.generate().stream().toList();
+        List<String> result = backusGenerator.generate(6).stream().toList();
 
         result.forEach(System.out::println);
     }

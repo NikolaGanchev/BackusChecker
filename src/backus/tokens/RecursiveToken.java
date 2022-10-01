@@ -1,3 +1,8 @@
+package backus.tokens;
+
+import backus.Definition;
+import backus.TokenType;
+
 public class RecursiveToken extends Token {
 
     private final Definition name;

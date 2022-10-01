@@ -1,3 +1,7 @@
+package backus.tokens;
+
+import backus.TokenType;
+
 public class Token {
     private final TokenType tokenType;
     private final String content;

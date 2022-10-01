@@ -1,4 +1,6 @@
-public class SimpleEqualityFilter implements Filter{
+package backus.filters;
+
+public class SimpleEqualityFilter implements Filter {
 
     private final String stringToCheckAgainst;
 

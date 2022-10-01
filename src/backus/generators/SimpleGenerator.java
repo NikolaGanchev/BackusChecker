@@ -1,7 +1,8 @@
+package backus.generators;
 
 public class SimpleGenerator implements Generator<String> {
 
-    private String value;
+    private final String value;
 
     public SimpleGenerator(String value) {
         this.value = value;

@@ -1,3 +1,8 @@
+package backus.tokens;
+
+import backus.Definition;
+import backus.TokenType;
+
 public class DependantToken extends RecursiveToken {
     private final Definition dependency;
 

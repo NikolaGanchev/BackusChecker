@@ -1,3 +1,8 @@
+package backus.filters;
+
+import backus.BackusChecker;
+import backus.Definition;
+
 public class DependantFilter implements Filter {
     private final String startingSequence;
     private final String endingSequence;

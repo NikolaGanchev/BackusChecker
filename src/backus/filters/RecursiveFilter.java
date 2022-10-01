@@ -1,6 +1,8 @@
+package backus.filters;
+
 import java.util.function.Function;
 
-public class RecursiveFilter implements Filter{
+public class RecursiveFilter implements Filter {
     private final String startingSequence;
     private final String endingSequence;
     private final Function<String, Boolean> recFunction;

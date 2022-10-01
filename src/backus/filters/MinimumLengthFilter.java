@@ -1,4 +1,6 @@
-public class MinimumLengthFilter implements Filter{
+package backus.filters;
+
+public class MinimumLengthFilter implements Filter {
     private final int minimumLength;
 
     public MinimumLengthFilter(int minimumLength) {

@@ -1,3 +1,4 @@
+package backus.generators;
 
 public interface Generator<T> {
     // Трябва да се изпълни единствено за прости случаи
